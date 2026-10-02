@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export const ISSUER_ID='338800000023213939';
+export const ISSUER_ID='3388000000023213939';
 export const CLASS_ID=ISSUER_ID+'.kingfood_fidelite';
 
 function credentials(){
