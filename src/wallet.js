@@ -50,7 +50,8 @@ export async function walletDiagnostic(){
   const tr=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})});
   const tj=await tr.json();
   if(!tr.ok)return {stage:'oauth',status:tr.status,error:tj.error,description:tj.error_description};
+  const ir=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/issuer',{headers:{authorization:'Bearer '+tj.access_token}}); const il=await ir.json(); const visibleIssuers=(il.resources||[]).map(x=>({issuerId:x.issuerId,name:x.name}));
   const cr=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/'+encodeURIComponent(CLASS_ID),{headers:{authorization:'Bearer '+tj.access_token}});
   const cj=await cr.json();
-  return cr.ok?{stage:'class',status:cr.status,id:cj.id,reviewStatus:cj.reviewStatus}:{stage:'class',status:cr.status,error:cj.error};
+  return {issuerListStatus:ir.status,visibleIssuers,classResult:cr.ok?{status:cr.status,id:cj.id,reviewStatus:cj.reviewStatus}:{status:cr.status,error:cj.error}};
 }
