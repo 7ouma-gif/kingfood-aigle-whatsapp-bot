@@ -86,7 +86,7 @@ app.post('/api/wallet/register',async (req,res)=>{
  try{
   const firstName=String(req.body.firstName||'').trim(),lastName=String(req.body.lastName||'').trim(),birthDate=String(req.body.birthDate||''),phone=String(req.body.phone||'').trim();
   if(firstName.length<2||firstName.length>40||lastName.length<2||lastName.length>40)return res.status(400).json({error:'Prénom et nom requis.'});
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(birthDate)||Number.isNaN(Date.parse(birthDate)))return res.status(400).json({error:'Date de naissance invalide.'});
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)||Number.isNaN(Date.parse(birthDate)))return res.status(400).json({error:'Date de naissance invalide.'});
   if(phone.length>32)return res.status(400).json({error:'Téléphone invalide.'});
   const memberId='KF-'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase();
   const {url,objectId}=createCustomerWalletLink({firstName,lastName,memberId});
