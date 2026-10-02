@@ -81,7 +81,6 @@ app.post('/api/demo',requireAdmin,(req,res)=>{handle(req.body.from||'41797171860
 app.get('/api/orders',requireAdmin,(req,res)=>res.json(orders));
 app.patch('/api/orders/:id',requireAdmin,(req,res)=>{const o=orders.find(x=>x.orderId===req.params.id);if(!o)return res.sendStatus(404);if(!['ACCEPTEE','REFUSEE'].includes(req.body.status))return res.sendStatus(400);o.status=req.body.status;o.eta=req.body.eta;if(o.status==='ACCEPTEE')send(o.id,`✅ Commande ${o.orderId} acceptée. Délai estimé : ${o.eta||25} minutes.`);if(o.status==='REFUSEE')send(o.id,`❌ Commande ${o.orderId} non acceptée. Appelez-nous au ${restaurant.phone}.`);res.json(o);});
 app.get('/api/config',(req,res)=>res.json({restaurant,categories}));
-app.get('/wallet/create-class-once',async (_req,res)=>{try{const r=await createWalletClass();res.type('html').send(`<meta name="viewport" content="width=device-width"><h2>King Food Google Wallet</h2><pre>${JSON.stringify(r,null,2).replace(/</g,'&lt;')}</pre>`);}catch(e){res.status(500).send('Erreur: '+e.message);}});
 app.post('/wallet/create-class',async (_req,res)=>{try{res.json(await createWalletClass());}catch(e){res.status(500).json({error:e.message});}});
 app.get('/wallet/diagnostic',async (_req,res)=>{try{res.json(await walletDiagnostic());}catch(e){res.status(500).json({error:e.message});}});
 app.get('/wallet/test',(req,res)=>{try{const {url}=createTestWalletLink();res.redirect(url);}catch(e){console.error('Wallet:',e.message);res.status(500).send('Google Wallet configuration error');}});
