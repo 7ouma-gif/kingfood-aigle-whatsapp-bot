@@ -44,7 +44,7 @@ export async function createWalletClass(){
   const assertion=jwt.sign({iss:c.client_email,scope:'https://www.googleapis.com/auth/wallet_object.issuer',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600},c.private_key,{algorithm:'RS256'});
   const tr=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})});
   const tj=await tr.json(); if(!tr.ok) return {stage:'oauth',status:tr.status,error:tj.error};
-  const body={id:CLASS_ID,issuerName:'King Food',programName:'King Food Fidélité',reviewStatus:'UNDER_REVIEW',multipleDevicesAndHoldersAllowedStatus:'MULTIPLE_HOLDERS',countryCode:'CH',hexBackgroundColor:'#6D0F1B',accountNameLabel:'Client',accountIdLabel:'N° membre',rewardsTierLabel:'Fidélité',rewardsTier:'Membre'};
+  const body={id:CLASS_ID,issuerName:'King Food',programName:'King Food Fidélité',programLogo:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/kingfood-wallet-logo.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Logo King Food'}}},reviewStatus:'UNDER_REVIEW',multipleDevicesAndHoldersAllowedStatus:'MULTIPLE_HOLDERS',countryCode:'CH',hexBackgroundColor:'#6D0F1B',accountNameLabel:'Client',accountIdLabel:'N° membre',rewardsTierLabel:'Fidélité',rewardsTier:'Membre'};
   const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass',{method:'POST',headers:{authorization:'Bearer '+tj.access_token,'content-type':'application/json'},body:JSON.stringify(body)});
   const j=await r.json(); return r.ok?{status:r.status,id:j.id,reviewStatus:j.reviewStatus}:{status:r.status,error:j.error};
 }
