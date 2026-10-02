@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<rect width="1024" height="1024" fill="#000"/>
+<g fill="none" stroke="#D4AF37" stroke-width="12"><path d="M240 520A300 300 0 0 1 784 520"/></g>
+<g fill="#D4AF37" font-family="Arial,sans-serif" font-size="48"><text x="205" y="315">★</text><text x="765" y="315">★</text><text x="170" y="395">★</text><text x="800" y="395">★</text><text x="155" y="485">★</text><text x="815" y="485">★</text></g>
+<text x="512" y="215" text-anchor="middle" fill="#fff" font-family="Arial Narrow,Arial,sans-serif" font-size="72" font-weight="300" letter-spacing="5">CHEZ HASSAN</text>
+<path d="M390 500 L435 285 Q440 265 458 265 L470 265 L490 455 Q493 475 512 475 Q531 475 534 455 L554 265 L566 265 Q584 265 589 285 L634 500 Z" fill="#A71930"/>
+<path d="M430 555 Q470 520 512 555 Q554 520 594 555 Q555 610 512 575 Q469 610 430 555Z" fill="#A71930"/>
+<text x="512" y="785" text-anchor="middle" fill="#fff" font-family="Arial Narrow,Arial,sans-serif" font-size="170" font-weight="300" letter-spacing="6">KINGFOOD</text>
+</svg>
