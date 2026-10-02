@@ -31,7 +31,7 @@ export function createTestWalletLink(){
     aud:'google',
     typ:'savetowallet',
     iat:Math.floor(Date.now()/1000),
-    origins:['https://kingfood-wallet-production.up.railway.app'],
+    origins:[],
     payload:{loyaltyObjects:[loyaltyObject]}
   };
   const token=jwt.sign(claims,c.private_key,{algorithm:'RS256'});
