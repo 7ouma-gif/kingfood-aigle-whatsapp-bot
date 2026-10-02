@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
 export const ISSUER_ID='3388000000023213939';
@@ -38,6 +39,25 @@ export function createTestWalletLink(){
   return {url:'https://pay.google.com/gp/v/save/'+token,objectId};
 }
 
+export function createCustomerWalletLink({firstName,lastName}){
+  const c=credentials();
+  const member='KF-'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase();
+  const objectId=ISSUER_ID+'.'+member.toLowerCase().replace(/-/g,'_');
+  const displayName=[firstName,lastName].filter(Boolean).join(' ').trim().slice(0,60);
+  const loyaltyObject={
+    id:objectId,classId:CLASS_ID,state:'ACTIVE',
+    accountName:displayName,accountId:member,
+    loyaltyPoints:{label:'Achats',balance:{int:0}},
+    barcode:{type:'QR_CODE',value:member,alternateText:member},
+    textModulesData:[
+      {id:'reward',header:'Fidélité',body:'0 / 10 achats'},
+      {id:'birthday',header:'Anniversaire',body:'Menu offert le jour de votre anniversaire'}
+    ]
+  };
+  const claims={iss:c.client_email,aud:'google',typ:'savetowallet',iat:Math.floor(Date.now()/1000),origins:['https://kingfood-wallet-production.up.railway.app'],payload:{loyaltyObjects:[loyaltyObject]}};
+  const token=jwt.sign(claims,c.private_key,{algorithm:'RS256'});
+  return {url:'https://pay.google.com/gp/v/save/'+token,member};
+}
 
 export async function createWalletClass(){
   const c=credentials(), now=Math.floor(Date.now()/1000);
