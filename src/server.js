@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
-import {createTestWalletLink} from './wallet.js';
+import {createTestWalletLink,walletDiagnostic} from './wallet.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
@@ -81,6 +81,7 @@ app.post('/api/demo',requireAdmin,(req,res)=>{handle(req.body.from||'41797171860
 app.get('/api/orders',requireAdmin,(req,res)=>res.json(orders));
 app.patch('/api/orders/:id',requireAdmin,(req,res)=>{const o=orders.find(x=>x.orderId===req.params.id);if(!o)return res.sendStatus(404);if(!['ACCEPTEE','REFUSEE'].includes(req.body.status))return res.sendStatus(400);o.status=req.body.status;o.eta=req.body.eta;if(o.status==='ACCEPTEE')send(o.id,`✅ Commande ${o.orderId} acceptée. Délai estimé : ${o.eta||25} minutes.`);if(o.status==='REFUSEE')send(o.id,`❌ Commande ${o.orderId} non acceptée. Appelez-nous au ${restaurant.phone}.`);res.json(o);});
 app.get('/api/config',(req,res)=>res.json({restaurant,categories}));
+app.get('/wallet/diagnostic',async (_req,res)=>{try{res.json(await walletDiagnostic());}catch(e){res.status(500).json({error:e.message});}});
 app.get('/wallet/test',(req,res)=>{try{const {url}=createTestWalletLink();res.redirect(url);}catch(e){console.error('Wallet:',e.message);res.status(500).send('Google Wallet configuration error');}});
 app.get('/health',(_,res)=>res.json({ok:true}));
 app.listen(process.env.PORT||3000,()=>console.log(`King Food bot: http://localhost:${process.env.PORT||3000}`));
