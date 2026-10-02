@@ -2,7 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
-import {createTestWalletLink,createCustomerWalletLink} from './wallet.js';
+import {createTestWalletLink,createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
+import {initDb,createCustomer,getCustomer,addPurchase,redeemReward,redeemBirthday} from './db.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
@@ -81,14 +82,22 @@ app.post('/api/demo',requireAdmin,(req,res)=>{handle(req.body.from||'41797171860
 app.get('/api/orders',requireAdmin,(req,res)=>res.json(orders));
 app.patch('/api/orders/:id',requireAdmin,(req,res)=>{const o=orders.find(x=>x.orderId===req.params.id);if(!o)return res.sendStatus(404);if(!['ACCEPTEE','REFUSEE'].includes(req.body.status))return res.sendStatus(400);o.status=req.body.status;o.eta=req.body.eta;if(o.status==='ACCEPTEE')send(o.id,`✅ Commande ${o.orderId} acceptée. Délai estimé : ${o.eta||25} minutes.`);if(o.status==='REFUSEE')send(o.id,`❌ Commande ${o.orderId} non acceptée. Appelez-nous au ${restaurant.phone}.`);res.json(o);});
 app.get('/api/config',(req,res)=>res.json({restaurant,categories}));
-app.post('/api/wallet/register',(req,res)=>{
+app.post('/api/wallet/register',async (req,res)=>{
  try{
-  const firstName=String(req.body.firstName||'').trim(),lastName=String(req.body.lastName||'').trim();
+  const firstName=String(req.body.firstName||'').trim(),lastName=String(req.body.lastName||'').trim(),birthDate=String(req.body.birthDate||''),phone=String(req.body.phone||'').trim();
   if(firstName.length<2||firstName.length>40||lastName.length<2||lastName.length>40)return res.status(400).json({error:'Prénom et nom requis.'});
-  const {url,member}=createCustomerWalletLink({firstName,lastName});
-  res.json({ok:true,url,member});
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(birthDate)||Number.isNaN(Date.parse(birthDate)))return res.status(400).json({error:'Date de naissance invalide.'});
+  if(phone.length>32)return res.status(400).json({error:'Téléphone invalide.'});
+  const memberId='KF-'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase();
+  const {url,objectId}=createCustomerWalletLink({firstName,lastName,memberId});
+  await createCustomer({memberId,objectId,firstName,lastName,birthDate,phone});
+  res.json({ok:true,url,member:memberId});
  }catch(e){console.error('Wallet register:',e.message);res.status(500).json({error:'Impossible de créer la carte pour le moment.'});}
 });
+app.get('/api/loyalty/:member',requireAdmin,async(req,res)=>{const x=await getCustomer(req.params.member);if(!x)return res.sendStatus(404);res.json(x);});
+app.post('/api/loyalty/:member/purchase',requireAdmin,async(req,res)=>{try{const x=await addPurchase(req.params.member);if(!x)return res.sendStatus(404);await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
+app.post('/api/loyalty/:member/redeem',requireAdmin,async(req,res)=>{try{const x=await redeemReward(req.params.member);if(!x)return res.status(409).json({error:'Aucune récompense disponible'});await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
+app.post('/api/loyalty/:member/birthday',requireAdmin,async(req,res)=>{try{const x=await redeemBirthday(req.params.member);if(!x)return res.status(409).json({error:"Avantage anniversaire indisponible aujourd'hui ou déjà utilisé"});res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
 app.get('/wallet/test',(req,res)=>{try{const {url}=createTestWalletLink();res.redirect(url);}catch(e){console.error('Wallet:',e.message);res.status(500).send('Google Wallet configuration error');}});
 app.get('/health',(_,res)=>res.json({ok:true}));
-app.listen(process.env.PORT||3000,()=>console.log(`King Food bot: http://localhost:${process.env.PORT||3000}`));
+initDb().then(()=>app.listen(process.env.PORT||3000,()=>console.log(`King Food bot: http://localhost:${process.env.PORT||3000}`))).catch(e=>{console.error('Database init failed',e);process.exit(1)});
