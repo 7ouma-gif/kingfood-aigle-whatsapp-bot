@@ -3,7 +3,7 @@ import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
 import {createTestWalletLink,createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
-import {initDb,createCustomer,getCustomer,addPurchase,redeemReward,redeemBirthday} from './db.js';
+import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday} from './db.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
@@ -96,6 +96,7 @@ app.post('/api/wallet/register',async (req,res)=>{
 });
 app.get('/api/loyalty/:member',requireAdmin,async(req,res)=>{const x=await getCustomer(req.params.member);if(!x)return res.sendStatus(404);res.json(x);});
 app.post('/api/loyalty/:member/purchase',requireAdmin,async(req,res)=>{try{const x=await addPurchase(req.params.member);if(!x)return res.sendStatus(404);await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
+app.post('/api/loyalty/:member/undo-purchase',requireAdmin,async(req,res)=>{try{const r=await undoLastPurchase(req.params.member);if(r.status==='missing')return res.sendStatus(404);if(r.status!=='ok')return res.status(409).json({error:'Aucun dernier achat annulable'});await syncWalletCustomer(r.customer);res.json(r.customer)}catch(e){console.error(e);res.status(500).json({error:'Annulation impossible'})}});
 app.post('/api/loyalty/:member/redeem',requireAdmin,async(req,res)=>{try{const x=await redeemReward(req.params.member);if(!x)return res.status(409).json({error:'Aucune récompense disponible'});await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
 app.post('/api/loyalty/:member/birthday',requireAdmin,async(req,res)=>{try{const x=await redeemBirthday(req.params.member);if(!x)return res.status(409).json({error:"Avantage anniversaire indisponible aujourd'hui ou déjà utilisé"});res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
 app.get('/wallet/test',(req,res)=>{try{const {url}=createTestWalletLink();res.redirect(url);}catch(e){console.error('Wallet:',e.message);res.status(500).send('Google Wallet configuration error');}});
