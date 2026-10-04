@@ -3,7 +3,7 @@ import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
 import {createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
-import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday,searchCustomers,adminUpdateCustomer,deleteCustomer} from './db.js';
+import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday,searchCustomers,adminUpdateCustomer,deleteCustomer,getCustomerEvents} from './db.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
@@ -56,6 +56,7 @@ app.post('/api/owner/login',(req,res)=>{
 app.get('/api/owner/session',(req,res)=>res.json({authenticated:!!ownerSession(req)}));
 app.post('/api/owner/logout',(req,res)=>{const token=parseCookies(req)[OWNER_COOKIE];if(token)ownerSessions.delete(token);res.setHeader('Set-Cookie',OWNER_COOKIE+'=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');res.json({ok:true})});
 app.get('/api/owner/customers',requireOwner,async(req,res)=>{try{res.json(await searchCustomers(req.query.q||''))}catch(e){console.error(e);res.status(500).json({error:'Recherche impossible'})}});
+app.get('/api/owner/customers/:member/history',requireOwner,async(req,res)=>{try{const x=await getCustomer(req.params.member);if(!x)return res.sendStatus(404);res.json(await getCustomerEvents(req.params.member))}catch(e){console.error(e);res.status(500).json({error:'Historique impossible'})}});
 app.patch('/api/owner/customers/:member',requireOwner,async(req,res)=>{try{const x=await adminUpdateCustomer(req.params.member,req.body||{});if(!x)return res.sendStatus(404);await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Modification impossible'})}});
 app.delete('/api/owner/customers/:member',requireOwner,async(req,res)=>{try{const ok=await deleteCustomer(req.params.member);if(!ok)return res.sendStatus(404);res.json({ok:true})}catch(e){console.error(e);res.status(500).json({error:'Suppression impossible'})}});
 
