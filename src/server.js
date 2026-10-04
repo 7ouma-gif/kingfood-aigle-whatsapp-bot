@@ -3,7 +3,7 @@ import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
 import {createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
-import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday,searchCustomers,adminUpdateCustomer,deleteCustomer,getCustomerEvents} from './db.js';
+import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday,searchCustomers,adminUpdateCustomer,deleteCustomer,getCustomerEvents,getRewardsCatalog,addPointsForAmount,redeemPointsReward} from './db.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
@@ -131,6 +131,9 @@ app.post('/api/wallet/register',async (req,res)=>{
  }catch(e){console.error('Wallet register:',e.message);res.status(500).json({error:'Impossible de créer la carte pour le moment.'});}
 });
 app.get('/api/loyalty/:member',requireAdmin,async(req,res)=>{const x=await getCustomer(req.params.member);if(!x)return res.sendStatus(404);res.json(x);});
+app.get('/api/loyalty-rewards',requireAdmin,async(_req,res)=>{try{res.json(await getRewardsCatalog())}catch(e){console.error(e);res.status(500).json({error:'Récompenses indisponibles'})}});
+app.post('/api/loyalty/:member/points',requireAdmin,async(req,res)=>{try{const r=await addPointsForAmount(req.params.member,req.body?.amount);if(r.status==='invalid')return res.status(400).json({error:'Montant invalide'});if(r.status==='missing')return res.sendStatus(404);await syncWalletCustomer(r.customer);res.json(r)}catch(e){console.error(e);res.status(500).json({error:'Ajout des points impossible'})}});
+app.post('/api/loyalty/:member/points-redeem',requireAdmin,async(req,res)=>{try{const r=await redeemPointsReward(req.params.member,String(req.body?.rewardId||''));if(r.status==='reward_missing')return res.status(404).json({error:'Récompense inconnue'});if(r.status==='insufficient')return res.status(409).json({error:'Points insuffisants'});await syncWalletCustomer(r.customer);res.json(r)}catch(e){console.error(e);res.status(500).json({error:'Utilisation impossible'})}});
 app.post('/api/loyalty/:member/purchase',requireAdmin,async(req,res)=>{try{const x=await addPurchase(req.params.member);if(!x)return res.sendStatus(404);await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
 app.post('/api/loyalty/:member/undo-purchase',requireAdmin,async(req,res)=>{try{const r=await undoLastPurchase(req.params.member);if(r.status==='missing')return res.sendStatus(404);if(r.status!=='ok')return res.status(409).json({error:'Aucun dernier achat annulable'});await syncWalletCustomer(r.customer);res.json(r.customer)}catch(e){console.error(e);res.status(500).json({error:'Annulation impossible'})}});
 app.post('/api/loyalty/:member/redeem',requireAdmin,async(req,res)=>{try{const x=await redeemReward(req.params.member);if(!x)return res.status(409).json({error:'Aucune récompense disponible'});await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
