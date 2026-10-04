@@ -36,7 +36,7 @@ export async function initDb(){
 }
 export async function createCustomer(c){
  const q=`INSERT INTO loyalty_customers(member_id,wallet_object_id,first_name,last_name,birth_date,phone)
- VALUES($1,$2,$3,$4,$5,$6) RETURNING member_id,first_name,last_name,purchases,rewards_available`;
+ VALUES($1,$2,$3,$4,$5,$6) RETURNING member_id,first_name,last_name,points`;
  return (await pool.query(q,[c.memberId,c.objectId,c.firstName,c.lastName,c.birthDate,c.phone||null])).rows[0];
 }
 export async function getCustomer(memberId){
@@ -107,9 +107,16 @@ export async function searchCustomers(q=''){
 export async function adminUpdateCustomer(memberId,patch){
  const points=Math.max(0,Math.min(1000000,Number.parseInt(patch.points,10)||0));
  const birthday=patch.birthday_redeemed_year===null||patch.birthday_redeemed_year===''?null:Number.parseInt(patch.birthday_redeemed_year,10);
- const r=await pool.query(`UPDATE loyalty_customers SET points=$2,birthday_redeemed_year=$3,updated_at=NOW()
- WHERE member_id=$1 RETURNING *`,[memberId,points,Number.isInteger(birthday)?birthday:null]);
- return r.rows[0]||null;
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  const before=(await client.query('SELECT points FROM loyalty_customers WHERE member_id=$1 FOR UPDATE',[memberId])).rows[0];
+  if(!before){await client.query('ROLLBACK');return null;}
+  const r=(await client.query(`UPDATE loyalty_customers SET points=$2,birthday_redeemed_year=$3,updated_at=NOW() WHERE member_id=$1 RETURNING *`,[memberId,points,Number.isInteger(birthday)?birthday:null])).rows[0];
+  const delta=points-Number(before.points||0);
+  if(delta!==0)await client.query("INSERT INTO loyalty_events(member_id,event_type,delta,note) VALUES($1,'POINTS_ADJUSTED',$2,'Correction patron')",[memberId,delta]);
+  await client.query('COMMIT');return r;
+ }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
 }
 export async function deleteCustomer(memberId){
  const r=await pool.query('DELETE FROM loyalty_customers WHERE member_id=$1 RETURNING member_id',[memberId]);
