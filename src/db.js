@@ -27,6 +27,11 @@ export async function initDb(){
    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
  );
  CREATE INDEX IF NOT EXISTS loyalty_events_member_created_idx ON loyalty_events(member_id,created_at DESC);
+ ALTER TABLE loyalty_customers ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0 CHECK(points>=0);
+ CREATE TABLE IF NOT EXISTS loyalty_rewards(id VARCHAR(40) PRIMARY KEY,name VARCHAR(100) NOT NULL,points_cost INTEGER NOT NULL CHECK(points_cost>0),active BOOLEAN NOT NULL DEFAULT TRUE,sort_order INTEGER NOT NULL DEFAULT 0);
+ INSERT INTO loyalty_rewards(id,name,points_cost,sort_order) VALUES
+ ('fries-small','Petite frite',600,10),('tiramisu','Tiramisu',750,20),('snack-6','Snack 6 pièces',1000,30),('tasty-m','Tasty Crousty M',1600,40),('tacos-m','Tacos M',1600,50),('menu-cheeseburger','Menu Cheeseburger',1900,60),('menu-choice-19','Menu au choix jusqu’à 19 CHF',2500,70)
+ ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,points_cost=EXCLUDED.points_cost,sort_order=EXCLUDED.sort_order;
  `);
 }
 export async function createCustomer(c){
@@ -116,3 +121,8 @@ export async function getCustomerEvents(memberId){
  const r=await pool.query(`SELECT id,event_type,delta,note,created_at FROM loyalty_events WHERE member_id=$1 ORDER BY id DESC LIMIT 100`,[memberId]);
  return r.rows;
 }
+
+export const POINTS_PER_CHF=10;
+export async function getRewardsCatalog(){return (await pool.query("SELECT id,name,points_cost,active,sort_order FROM loyalty_rewards WHERE active=TRUE ORDER BY sort_order,id")).rows;}
+export async function addPointsForAmount(memberId,amountChf){const cents=Math.round(Number(amountChf)*100);if(!Number.isInteger(cents)||cents<=0||cents>100000)return {status:'invalid'};const points=Math.round((cents/100)*POINTS_PER_CHF);const client=await pool.connect();try{await client.query('BEGIN');const r=await client.query('UPDATE loyalty_customers SET points=points+$2,updated_at=NOW() WHERE member_id=$1 RETURNING *',[memberId,points]);if(!r.rows[0]){await client.query('ROLLBACK');return {status:'missing'}}await client.query("INSERT INTO loyalty_events(member_id,event_type,delta,note) VALUES($1,'POINTS_EARNED',$2,$3)",[memberId,points,(cents/100).toFixed(2)+' CHF']);await client.query('COMMIT');return {status:'ok',customer:r.rows[0],pointsAdded:points}}catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}}
+export async function redeemPointsReward(memberId,rewardId){const client=await pool.connect();try{await client.query('BEGIN');const reward=(await client.query('SELECT * FROM loyalty_rewards WHERE id=$1 AND active=TRUE',[rewardId])).rows[0];if(!reward){await client.query('ROLLBACK');return {status:'reward_missing'}}const r=await client.query('UPDATE loyalty_customers SET points=points-$2,updated_at=NOW() WHERE member_id=$1 AND points>=$2 RETURNING *',[memberId,reward.points_cost]);if(!r.rows[0]){await client.query('ROLLBACK');return {status:'insufficient'}}await client.query("INSERT INTO loyalty_events(member_id,event_type,delta,note) VALUES($1,'POINTS_REDEEMED',$2,$3)",[memberId,-reward.points_cost,reward.name]);await client.query('COMMIT');return {status:'ok',customer:r.rows[0],reward}}catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}}
