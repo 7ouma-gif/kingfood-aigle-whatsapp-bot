@@ -10,6 +10,11 @@ app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
 
 app.use(express.static('public'));
 const sessions=new Map(),orders=[];
+const staffSessions=new Map(),loginAttempts=new Map();
+const COOKIE_NAME='kf_staff';
+const parseCookies=req=>Object.fromEntries(String(req.headers.cookie||'').split(';').map(x=>x.trim().split('=').map(decodeURIComponent)).filter(x=>x.length===2));
+function staffSession(req){const token=parseCookies(req)[COOKIE_NAME],x=token&&staffSessions.get(token);if(!x||x.expires<Date.now()){if(token)staffSessions.delete(token);return null}x.expires=Date.now()+1000*60*60*24*30;return x}
+function setStaffCookie(res,token){res.setHeader('Set-Cookie',COOKIE_NAME+'='+encodeURIComponent(token)+'; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000')}
 const money=n=>`${n.toFixed(2)} CHF`;
 const numbered=items=>items.map((x,i)=>`${i+1}. ${x.name}${x.price?` — ${money(x.price)}`:''}`).join('\n');
 const normalize=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
@@ -19,12 +24,24 @@ async function send(to,body){
  await fetch(`https://graph.facebook.com/${process.env.GRAPH_API_VERSION||'v23.0'}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,{method:'POST',headers:{Authorization:`Bearer ${process.env.WHATSAPP_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to,type:'text',text:{body}})});
 }
 function requireAdmin(req,res,next){
+ if(staffSession(req))return next();
  const supplied=req.get('x-admin-pin');
  if(!process.env.ADMIN_PIN||!supplied)return res.sendStatus(401);
  const a=Buffer.from(supplied),b=Buffer.from(process.env.ADMIN_PIN);
  if(a.length!==b.length||!crypto.timingSafeEqual(a,b))return res.sendStatus(401);
  next();
 }
+app.post('/api/staff/login',(req,res)=>{
+ const ip=req.ip||req.socket.remoteAddress||'unknown',now=Date.now(),state=loginAttempts.get(ip)||{count:0,until:0};
+ if(state.until>now)return res.status(429).json({error:'Attendez quelques minutes.'});
+ const supplied=String(req.body?.password||''),expected=process.env.STAFF_PASSWORD;
+ if(!expected)return res.status(503).json({error:'Connexion non configurée.'});
+ const a=Buffer.from(supplied),b=Buffer.from(expected);
+ if(a.length!==b.length||!crypto.timingSafeEqual(a,b)){state.count++;if(state.count>=5){state.count=0;state.until=now+5*60*1000}loginAttempts.set(ip,state);return res.status(401).json({error:'Mot de passe incorrect.'})}
+ loginAttempts.delete(ip);const token=crypto.randomBytes(32).toString('base64url');staffSessions.set(token,{expires:now+1000*60*60*24*30});setStaffCookie(res,token);res.json({ok:true});
+});
+app.get('/api/staff/session',(req,res)=>res.json({authenticated:!!staffSession(req)}));
+app.post('/api/staff/logout',(req,res)=>{const token=parseCookies(req)[COOKIE_NAME];if(token)staffSessions.delete(token);res.setHeader('Set-Cookie',COOKIE_NAME+'=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');res.json({ok:true})});
 function validMetaSignature(req){
  const secret=process.env.META_APP_SECRET,header=req.get('x-hub-signature-256');
  if(!secret||!header||!req.rawBody)return false;
