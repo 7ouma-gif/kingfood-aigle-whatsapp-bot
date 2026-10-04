@@ -81,7 +81,6 @@ export async function syncWalletCustomer(customer){
  const token=await walletAccessToken();
  const objectId=customer.wallet_object_id;
  const points=Number(customer.points||0);
- const next=points<600?'Petite frite à 600 pts':points<750?'Tiramisu à 750 pts':points<1000?'Snack 6 pièces à 1’000 pts':points<1600?'Tacos M / Tasty Crousty M à 1’600 pts':points<1900?'Menu Cheeseburger à 1’900 pts':points<2500?'Menu au choix ≤ 19 CHF à 2’500 pts':'Récompenses disponibles';
  const body={loyaltyPoints:{label:'Points',balance:{int:points}},textModulesData:[
   {id:'reward',header:'⭐ VOS POINTS KING FOOD',body:points.toLocaleString('fr-CH')+' points\n'+next+'\n1 CHF dépensé = 10 points'},
   {id:'birthday',header:'🎂 ANNIVERSAIRE',body:birthdayWalletStatus(customer)+'\n1 menu offert le jour de votre anniversaire'}
