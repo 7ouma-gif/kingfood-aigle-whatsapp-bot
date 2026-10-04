@@ -111,3 +111,8 @@ export async function deleteCustomer(memberId){
  const r=await pool.query('DELETE FROM loyalty_customers WHERE member_id=$1 RETURNING member_id',[memberId]);
  return !!r.rows[0];
 }
+
+export async function getCustomerEvents(memberId){
+ const r=await pool.query(`SELECT id,event_type,delta,note,created_at FROM loyalty_events WHERE member_id=$1 ORDER BY id DESC LIMIT 100`,[memberId]);
+ return r.rows;
+}
