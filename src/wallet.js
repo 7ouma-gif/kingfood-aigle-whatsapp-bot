@@ -23,9 +23,8 @@ export function createTestWalletLink(){
     loyaltyPoints:{label:'Achats',balance:{int:0}},
     barcode:{type:'QR_CODE',value:'KF-TEST-001',alternateText:'KF-TEST-001'},
     textModulesData:[
-      {id:'reward',header:'⭐ PROGRESSION FIDÉLITÉ',body:'0 / 9 ACHATS'},
-      {id:'available',header:'🎁 VOTRE 10e MENU',body:'Après 9 achats payés : Tacos M + boisson OU Tasty Crousty M + boisson'},
-      {id:'birthday',header:'🎂 ANNIVERSAIRE',body:'1 menu offert le jour de votre anniversaire'}
+      {id:'reward',header:'⭐ FIDÉLITÉ — 10e MENU OFFERT',body:'0 / 9 achats — encore 9 avant votre menu offert'},
+      {id:'birthday',header:'🎂 ANNIVERSAIRE',body:'○ À UTILISER LE JOUR DE VOTRE ANNIVERSAIRE\n1 menu offert le jour de votre anniversaire'}
     ]
   };
   const claims={
@@ -52,9 +51,8 @@ export function createCustomerWalletLink({firstName,lastName,memberId}){
     loyaltyPoints:{label:'Achats',balance:{int:0}},
     barcode:{type:'QR_CODE',value:member,alternateText:member},
     textModulesData:[
-      {id:'reward',header:'⭐ PROGRESSION FIDÉLITÉ',body:'0 / 9 ACHATS'},
-      {id:'available',header:'🎁 VOTRE 10e MENU',body:'Après 9 achats payés : Tacos M + boisson OU Tasty Crousty M + boisson'},
-      {id:'birthday',header:'🎂 ANNIVERSAIRE',body:'1 menu offert le jour de votre anniversaire'}
+      {id:'reward',header:'⭐ FIDÉLITÉ — 10e MENU OFFERT',body:'0 / 9 achats — encore 9 avant votre menu offert'},
+      {id:'birthday',header:'🎂 ANNIVERSAIRE',body:'○ À UTILISER LE JOUR DE VOTRE ANNIVERSAIRE\n1 menu offert le jour de votre anniversaire'}
     ]
   };
   const claims={iss:c.client_email,aud:'google',typ:'savetowallet',iat:Math.floor(Date.now()/1000),origins:['https://kingfood-wallet-production.up.railway.app'],payload:{loyaltyObjects:[loyaltyObject]}};
@@ -69,13 +67,22 @@ async function walletAccessToken(){
  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})});
  const j=await r.json();if(!r.ok)throw new Error('OAuth Google Wallet refusé');return j.access_token;
 }
+function birthdayWalletStatus(customer){
+ const now=new Date(), parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+ const get=t=>Number(parts.find(x=>x.type===t)?.value), year=get('year'),month=get('month'),day=get('day');
+ const raw=customer.birth_date instanceof Date?customer.birth_date.toISOString().slice(0,10):String(customer.birth_date||'').slice(0,10);
+ const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/),isToday=!!m&&Number(m[2])===month&&Number(m[3])===day,used=Number(customer.birthday_redeemed_year)===year;
+ if(used)return '✓ UTILISÉ CETTE ANNÉE';
+ if(isToday)return '★ DISPONIBLE AUJOURD’HUI';
+ return '○ À UTILISER LE JOUR DE VOTRE ANNIVERSAIRE';
+}
+
 export async function syncWalletCustomer(customer){
  const token=await walletAccessToken();
  const objectId=customer.wallet_object_id;
  const body={loyaltyPoints:{label:'Achats',balance:{int:customer.purchases}},textModulesData:[
-  {id:'reward',header:'⭐ PROGRESSION FIDÉLITÉ',body:customer.rewards_available>0?'🎁 RÉCOMPENSE DÉBLOQUÉE !':`${customer.purchases} / 9 ACHATS`},
-  {id:'available',header:'🎁 VOTRE 10e MENU',body:customer.rewards_available>0?'DISPONIBLE — Tacos M + boisson OU Tasty Crousty M + boisson':'Après 9 achats payés : Tacos M + boisson OU Tasty Crousty M + boisson'},
-  {id:'birthday',header:'🎂 ANNIVERSAIRE',body:'1 menu offert le jour de votre anniversaire'}
+  {id:'reward',header:'⭐ FIDÉLITÉ — 10e MENU OFFERT',body:customer.rewards_available>0?'★ DISPONIBLE — Tacos M + boisson OU Tasty Crousty M + boisson':`${customer.purchases} / 9 achats — encore ${9-customer.purchases} avant votre menu offert`},
+  {id:'birthday',header:'🎂 ANNIVERSAIRE',body:birthdayWalletStatus(customer)+'\n1 menu offert le jour de votre anniversaire'}
  ]};
  const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/'+encodeURIComponent(objectId),{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)});
  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j?.error?.message||'Mise à jour Wallet refusée');}
