@@ -51,21 +51,30 @@ export async function addPurchase(memberId){
  }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
 }
 export async function redeemReward(memberId){
- const r=await pool.query(`UPDATE loyalty_customers SET rewards_available=rewards_available-1,updated_at=NOW()
- WHERE member_id=$1 AND rewards_available>0 RETURNING *`,[memberId]);
- if(!r.rows[0])return null;
- await pool.query("INSERT INTO loyalty_events(member_id,event_type,note) VALUES($1,'REWARD_REDEEMED','Récompense fidélité utilisée')",[memberId]);
- return r.rows[0];
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  const r=await client.query(`UPDATE loyalty_customers SET rewards_available=rewards_available-1,updated_at=NOW()
+   WHERE member_id=$1 AND rewards_available>0 RETURNING *`,[memberId]);
+  if(!r.rows[0]){await client.query('ROLLBACK');return null;}
+  await client.query("INSERT INTO loyalty_events(member_id,event_type,note) VALUES($1,'REWARD_REDEEMED','Récompense fidélité utilisée')",[memberId]);
+  await client.query('COMMIT'); return r.rows[0];
+ }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
 }
 export async function redeemBirthday(memberId){
- const y=new Date().getFullYear();
- const r=await pool.query(`UPDATE loyalty_customers SET birthday_redeemed_year=$2,updated_at=NOW()
- WHERE member_id=$1 AND (birthday_redeemed_year IS NULL OR birthday_redeemed_year<$2)
- AND EXTRACT(MONTH FROM birth_date)=EXTRACT(MONTH FROM CURRENT_DATE)
- AND EXTRACT(DAY FROM birth_date)=EXTRACT(DAY FROM CURRENT_DATE) RETURNING *`,[memberId,y]);
- if(!r.rows[0])return null;
- await pool.query("INSERT INTO loyalty_events(member_id,event_type,note) VALUES($1,'BIRTHDAY_REDEEMED',$2)",[memberId,'Menu anniversaire '+y]);
- return r.rows[0];
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  const r=await client.query(`UPDATE loyalty_customers SET birthday_redeemed_year=EXTRACT(YEAR FROM (NOW() AT TIME ZONE 'Europe/Zurich'))::int,updated_at=NOW()
+   WHERE member_id=$1
+   AND (birthday_redeemed_year IS NULL OR birthday_redeemed_year<EXTRACT(YEAR FROM (NOW() AT TIME ZONE 'Europe/Zurich'))::int)
+   AND EXTRACT(MONTH FROM birth_date)=EXTRACT(MONTH FROM (NOW() AT TIME ZONE 'Europe/Zurich'))
+   AND EXTRACT(DAY FROM birth_date)=EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Europe/Zurich')) RETURNING *`,[memberId]);
+  if(!r.rows[0]){await client.query('ROLLBACK');return null;}
+  const y=r.rows[0].birthday_redeemed_year;
+  await client.query("INSERT INTO loyalty_events(member_id,event_type,note) VALUES($1,'BIRTHDAY_REDEEMED',$2)",[memberId,'Menu anniversaire '+y]);
+  await client.query('COMMIT'); return r.rows[0];
+ }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
 }
 
 export async function undoLastPurchase(memberId){
