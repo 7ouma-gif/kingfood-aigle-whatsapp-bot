@@ -88,7 +88,6 @@ export async function syncWalletCustomer(customer){
  const body={heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/kingfood-wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Récompenses fidélité King Food'}}},loyaltyPoints:{label:'Points',balance:{int:points}},textModulesData:[
   {id:'reward',header:'⭐ VOS POINTS KING FOOD',body:'1 CHF dépensé = 10 points\nRécompenses dès 600 points'},
       {id:'rewards_catalog',header:'🎁 VOS RÉCOMPENSES',body:'🍟 600 pts — Petite frite\n🍰 750 pts — Tiramisu\n🍗 1’000 pts — Snack 6 pièces\n🍚 1’600 pts — Tasty Crousty M\n🌮 1’600 pts — Tacos M\n🍔 1’900 pts — Menu Cheeseburger\n👑 2’500 pts — Menu au choix jusqu’à 19 CHF'},
-  {id:'rewards_catalog',header:'🎁 VOS RÉCOMPENSES',body:'🍟 600 pts — Petite frite\n🍰 750 pts — Tiramisu\n🍗 1’000 pts — Snack 6 pièces\n🍚 1’600 pts — Tasty Crousty M\n🌮 1’600 pts — Tacos M\n🍔 1’900 pts — Menu Cheeseburger\n👑 2’500 pts — Menu au choix jusqu’à 19 CHF'},
   {id:'birthday',header:'🎂 ANNIVERSAIRE',body:birthdayWalletStatus(customer)+'\n1 menu offert le jour de votre anniversaire'}
  ]};
  const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/'+encodeURIComponent(objectId),{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)});
