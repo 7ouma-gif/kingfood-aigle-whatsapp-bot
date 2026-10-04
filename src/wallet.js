@@ -46,6 +46,7 @@ export function createCustomerWalletLink({firstName,lastName,memberId}){
   const displayName=[firstName,lastName].filter(Boolean).join(' ').trim().slice(0,60);
   const loyaltyObject={
     id:objectId,classId:CLASS_ID,state:'ACTIVE',
+    heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Tacos King Food'}}},
     accountName:displayName,accountId:member,
     loyaltyPoints:{label:'Achats',balance:{int:0}},
     barcode:{type:'QR_CODE',value:member,alternateText:member},
@@ -69,7 +70,7 @@ async function walletAccessToken(){
 export async function syncWalletCustomer(customer){
  const token=await walletAccessToken();
  const objectId=customer.wallet_object_id;
- const body={loyaltyPoints:{label:'Achats',balance:{int:customer.purchases}},textModulesData:[
+ const body={heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Tacos King Food'}}},loyaltyPoints:{label:'Achats',balance:{int:customer.purchases}},textModulesData:[
   {id:'reward',header:'Fidélité',body:customer.rewards_available>0?'🎁 10e menu offert disponible':`${customer.purchases} / 9 achats`},
   {id:'available',header:'10e menu offert',body:customer.rewards_available>0?'Tacos M + boisson OU Tasty Crousty M + boisson':'Après 9 achats payés'},
   {id:'birthday',header:'Anniversaire',body:'Menu offert le jour de votre anniversaire'}
@@ -81,7 +82,7 @@ export async function syncWalletCustomer(customer){
 
 export async function updateWalletClass(){
  const token=await walletAccessToken();
- const body={hexBackgroundColor:'#6D0F1B',programName:'King Food Fidélité',issuerName:'King Food',heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/wallet-hero.jpg'},contentDescription:{defaultValue:{language:'fr-FR',value:'King Food — La qualité c’est notre passion'}}}};
+ const body={hexBackgroundColor:'#6D0F1B',programName:'King Food Fidélité',issuerName:'King Food',heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'King Food — La qualité c’est notre passion'}}}};
  const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/'+encodeURIComponent(CLASS_ID),{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.error?.message||'Mise à jour classe Wallet refusée');return j;
 }
