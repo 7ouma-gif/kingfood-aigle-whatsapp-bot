@@ -83,7 +83,7 @@ export async function syncWalletCustomer(customer){
  const token=await walletAccessToken();
  const objectId=customer.wallet_object_id;
  const points=Number(customer.points||0);
- const body={loyaltyPoints:{label:'Points',balance:{int:points}},textModulesData:[
+ const body={heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/kingfood-wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Récompenses fidélité King Food'}}},loyaltyPoints:{label:'Points',balance:{int:points}},textModulesData:[
   {id:'reward',header:'⭐ VOS POINTS KING FOOD',body:points.toLocaleString('fr-CH')+' points\n'+next+'\n1 CHF dépensé = 10 points'},
   {id:'birthday',header:'🎂 ANNIVERSAIRE',body:birthdayWalletStatus(customer)+'\n1 menu offert le jour de votre anniversaire'}
  ]};
