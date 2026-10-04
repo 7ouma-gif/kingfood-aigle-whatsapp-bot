@@ -18,6 +18,7 @@ export function createTestWalletLink(){
     id:objectId,
     classId:CLASS_ID,
     state:'ACTIVE',
+    heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/kingfood-wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Récompenses fidélité King Food'}}},
     accountName:'Client Test',
     accountId:'KF-TEST-001',
     loyaltyPoints:{label:'Points',balance:{int:0}},
@@ -46,6 +47,7 @@ export function createCustomerWalletLink({firstName,lastName,memberId}){
   const displayName=[firstName,lastName].filter(Boolean).join(' ').trim().slice(0,60);
   const loyaltyObject={
     id:objectId,classId:CLASS_ID,state:'ACTIVE',
+    heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/kingfood-wallet-hero.png'},contentDescription:{defaultValue:{language:'fr-FR',value:'Récompenses fidélité King Food'}}},
     
     accountName:displayName,accountId:member,
     loyaltyPoints:{label:'Points',balance:{int:0}},
