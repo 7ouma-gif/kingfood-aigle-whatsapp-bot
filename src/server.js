@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
-import {createTestWalletLink,createCustomerWalletLink,syncWalletCustomer,updateWalletClass} from './wallet.js';
+import {createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
 import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday} from './db.js';
 
 const app=express();
@@ -100,7 +100,5 @@ app.post('/api/loyalty/:member/purchase',requireAdmin,async(req,res)=>{try{const
 app.post('/api/loyalty/:member/undo-purchase',requireAdmin,async(req,res)=>{try{const r=await undoLastPurchase(req.params.member);if(r.status==='missing')return res.sendStatus(404);if(r.status!=='ok')return res.status(409).json({error:'Aucun dernier achat annulable'});await syncWalletCustomer(r.customer);res.json(r.customer)}catch(e){console.error(e);res.status(500).json({error:'Annulation impossible'})}});
 app.post('/api/loyalty/:member/redeem',requireAdmin,async(req,res)=>{try{const x=await redeemReward(req.params.member);if(!x)return res.status(409).json({error:'Aucune récompense disponible'});await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
 app.post('/api/loyalty/:member/birthday',requireAdmin,async(req,res)=>{try{const x=await redeemBirthday(req.params.member);if(!x)return res.status(409).json({error:"Avantage anniversaire indisponible aujourd'hui ou déjà utilisé"});res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Mise à jour impossible'})}});
-app.get('/wallet/test',(req,res)=>{try{const {url}=createTestWalletLink();res.redirect(url);}catch(e){console.error('Wallet:',e.message);res.status(500).send('Google Wallet configuration error');}});
-app.post('/api/wallet/update-class',requireAdmin,async(req,res)=>{try{const x=await updateWalletClass();res.json({ok:true,id:x.id,reviewStatus:x.reviewStatus})}catch(e){console.error(e);res.status(500).json({error:e.message})}});
 app.get('/health',(_,res)=>res.json({ok:true}));
-initDb().then(()=>app.listen(process.env.PORT||3000,()=>{console.log(`King Food bot: http://localhost:${process.env.PORT||3000}`);updateWalletClass().then(()=>console.log('Google Wallet class refreshed')).catch(e=>console.error('Wallet class refresh:',e.message));})).catch(e=>{console.error('Database init failed',e);process.exit(1)});
+initDb().then(()=>app.listen(process.env.PORT||3000,()=>console.log(`King Food bot: http://localhost:${process.env.PORT||3000}`))).catch(e=>{console.error('Database init failed',e);process.exit(1)});
