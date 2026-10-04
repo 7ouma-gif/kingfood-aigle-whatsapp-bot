@@ -79,6 +79,13 @@ export async function syncWalletCustomer(customer){
  return true;
 }
 
+export async function updateWalletClass(){
+ const token=await walletAccessToken();
+ const body={hexBackgroundColor:'#6D0F1B',programName:'King Food Fidélité',issuerName:'King Food',heroImage:{sourceUri:{uri:'https://kingfood-wallet-production.up.railway.app/wallet-hero.jpg'},contentDescription:{defaultValue:{language:'fr-FR',value:'King Food — La qualité c’est notre passion'}}}};
+ const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/'+encodeURIComponent(CLASS_ID),{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)});
+ const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.error?.message||'Mise à jour classe Wallet refusée');return j;
+}
+
 export async function createWalletClass(){
   const c=credentials(), now=Math.floor(Date.now()/1000);
   const assertion=jwt.sign({iss:c.client_email,scope:'https://www.googleapis.com/auth/wallet_object.issuer',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600},c.private_key,{algorithm:'RS256'});
