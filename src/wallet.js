@@ -23,7 +23,7 @@ export function createTestWalletLink(){
     loyaltyPoints:{label:'Achats',balance:{int:0}},
     barcode:{type:'QR_CODE',value:'KF-TEST-001',alternateText:'KF-TEST-001'},
     textModulesData:[
-      {id:'reward',header:'Fidélité',body:'0 / 10 achats'},
+      {id:'reward',header:'Fidélité',body:'0 / 9 achats'},
       {id:'birthday',header:'Anniversaire',body:'Menu offert le jour de votre anniversaire'}
     ]
   };
@@ -50,7 +50,7 @@ export function createCustomerWalletLink({firstName,lastName,memberId}){
     loyaltyPoints:{label:'Achats',balance:{int:0}},
     barcode:{type:'QR_CODE',value:member,alternateText:member},
     textModulesData:[
-      {id:'reward',header:'Fidélité',body:'0 / 10 achats'},
+      {id:'reward',header:'Fidélité',body:'0 / 9 achats'},
       {id:'birthday',header:'Anniversaire',body:'Menu offert le jour de votre anniversaire'}
     ]
   };
@@ -70,8 +70,8 @@ export async function syncWalletCustomer(customer){
  const token=await walletAccessToken();
  const objectId=customer.wallet_object_id;
  const body={loyaltyPoints:{label:'Achats',balance:{int:customer.purchases}},textModulesData:[
-  {id:'reward',header:'Fidélité',body:`${customer.purchases} / 10 achats`},
-  {id:'available',header:'Récompenses disponibles',body:String(customer.rewards_available)},
+  {id:'reward',header:'Fidélité',body:customer.rewards_available>0?'🎁 10e menu offert disponible':`${customer.purchases} / 9 achats`},
+  {id:'available',header:'10e menu offert',body:customer.rewards_available>0?'Tacos M + boisson OU Tasty Crousty M + boisson':'Après 9 achats payés'},
   {id:'birthday',header:'Anniversaire',body:'Menu offert le jour de votre anniversaire'}
  ]};
  const r=await fetch('https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/'+encodeURIComponent(objectId),{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)});
