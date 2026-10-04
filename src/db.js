@@ -99,17 +99,16 @@ export async function undoLastPurchase(memberId){
 
 export async function searchCustomers(q=''){
  const term=String(q||'').trim();
- const r=await pool.query(`SELECT member_id,first_name,last_name,birth_date,phone,purchases,rewards_available,birthday_redeemed_year,created_at,updated_at
+ const r=await pool.query(`SELECT member_id,first_name,last_name,birth_date,phone,points,birthday_redeemed_year,created_at,updated_at
  FROM loyalty_customers WHERE $1='' OR member_id ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2 OR COALESCE(phone,'') ILIKE $2
  ORDER BY updated_at DESC LIMIT 50`,[term,'%'+term+'%']);
  return r.rows;
 }
 export async function adminUpdateCustomer(memberId,patch){
- const purchases=Math.max(0,Math.min(8,Number.parseInt(patch.purchases,10)||0));
- const rewards=Math.max(0,Math.min(99,Number.parseInt(patch.rewards_available,10)||0));
+ const points=Math.max(0,Math.min(1000000,Number.parseInt(patch.points,10)||0));
  const birthday=patch.birthday_redeemed_year===null||patch.birthday_redeemed_year===''?null:Number.parseInt(patch.birthday_redeemed_year,10);
- const r=await pool.query(`UPDATE loyalty_customers SET purchases=$2,rewards_available=$3,birthday_redeemed_year=$4,updated_at=NOW()
- WHERE member_id=$1 RETURNING *`,[memberId,purchases,rewards,Number.isInteger(birthday)?birthday:null]);
+ const r=await pool.query(`UPDATE loyalty_customers SET points=$2,birthday_redeemed_year=$3,updated_at=NOW()
+ WHERE member_id=$1 RETURNING *`,[memberId,points,Number.isInteger(birthday)?birthday:null]);
  return r.rows[0]||null;
 }
 export async function deleteCustomer(memberId){
