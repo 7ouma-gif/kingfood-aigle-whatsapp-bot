@@ -7,6 +7,7 @@ import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemRew
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
+app.get('/wallet-hero-google.jpg',(_req,res)=>{res.type('image/jpeg').set('Cache-Control','public, max-age=3600').sendFile('wallet-hero.png',{root:'public'});});
 app.use(express.static('public'));
 const sessions=new Map(),orders=[];
 const money=n=>`${n.toFixed(2)} CHF`;
