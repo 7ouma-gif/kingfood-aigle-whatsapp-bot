@@ -44,7 +44,7 @@ export async function addPurchase(memberId){
   const r=await client.query('SELECT * FROM loyalty_customers WHERE member_id=$1 FOR UPDATE',[memberId]);
   if(!r.rows[0]){await client.query('ROLLBACK');return null;}
   let purchases=r.rows[0].purchases+1,rewards=r.rows[0].rewards_available;
-  if(purchases>=10){purchases=0;rewards++;}
+  if(purchases>=9){purchases=0;rewards++;}
   const u=(await client.query('UPDATE loyalty_customers SET purchases=$2,rewards_available=$3,updated_at=NOW() WHERE member_id=$1 RETURNING *',[memberId,purchases,rewards])).rows[0];
   await client.query("INSERT INTO loyalty_events(member_id,event_type,delta,note) VALUES($1,'PURCHASE',1,$2)",[memberId,purchases===0?'Récompense débloquée':null]);
   await client.query('COMMIT'); return u;
@@ -79,7 +79,7 @@ export async function undoLastPurchase(memberId){
   let purchases=c.purchases,rewards=c.rewards_available;
   if(last.note==='Récompense débloquée'){
    if(rewards<1){await client.query('ROLLBACK');return {status:'nothing'};}
-   purchases=9; rewards--;
+   purchases=8; rewards--;
   }else{
    if(purchases<1){await client.query('ROLLBACK');return {status:'nothing'};}
    purchases--;
