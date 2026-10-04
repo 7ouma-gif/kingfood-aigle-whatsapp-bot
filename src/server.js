@@ -3,15 +3,15 @@ import express from 'express';
 import crypto from 'crypto';
 import {categories,restaurant} from './catalog.js';
 import {createCustomerWalletLink,syncWalletCustomer} from './wallet.js';
-import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday} from './db.js';
+import {initDb,createCustomer,getCustomer,addPurchase,undoLastPurchase,redeemReward,redeemBirthday,searchCustomers,adminUpdateCustomer,deleteCustomer} from './db.js';
 
 const app=express();
 app.use(express.json({verify:(req,_res,buf)=>{req.rawBody=buf;}}));
 
 app.use(express.static('public'));
 const sessions=new Map(),orders=[];
-const staffSessions=new Map(),loginAttempts=new Map();
-const COOKIE_NAME='kf_staff';
+const staffSessions=new Map(),loginAttempts=new Map(),ownerSessions=new Map(),ownerAttempts=new Map();
+const COOKIE_NAME='kf_staff',OWNER_COOKIE='kf_owner';
 const parseCookies=req=>Object.fromEntries(String(req.headers.cookie||'').split(';').map(x=>x.trim().split('=').map(decodeURIComponent)).filter(x=>x.length===2));
 function staffSession(req){const token=parseCookies(req)[COOKIE_NAME],x=token&&staffSessions.get(token);if(!x||x.expires<Date.now()){if(token)staffSessions.delete(token);return null}x.expires=Date.now()+1000*60*60*24*30;return x}
 function setStaffCookie(res,token){res.setHeader('Set-Cookie',COOKIE_NAME+'='+encodeURIComponent(token)+'; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000')}
@@ -42,6 +42,23 @@ app.post('/api/staff/login',(req,res)=>{
 });
 app.get('/api/staff/session',(req,res)=>res.json({authenticated:!!staffSession(req)}));
 app.post('/api/staff/logout',(req,res)=>{const token=parseCookies(req)[COOKIE_NAME];if(token)staffSessions.delete(token);res.setHeader('Set-Cookie',COOKIE_NAME+'=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');res.json({ok:true})});
+function ownerSession(req){const token=parseCookies(req)[OWNER_COOKIE],x=token&&ownerSessions.get(token);if(!x||x.expires<Date.now()){if(token)ownerSessions.delete(token);return null}x.expires=Date.now()+1000*60*60*12;return x}
+function requireOwner(req,res,next){if(ownerSession(req))return next();res.sendStatus(401)}
+app.post('/api/owner/login',(req,res)=>{
+ const ip=req.ip||req.socket.remoteAddress||'unknown',now=Date.now(),state=ownerAttempts.get(ip)||{count:0,until:0};
+ if(state.until>now)return res.status(429).json({error:'Attendez quelques minutes.'});
+ const supplied=String(req.body?.password||''),expected=process.env.OWNER_PASSWORD;
+ if(!expected)return res.status(503).json({error:'Accès patron non configuré.'});
+ const a=Buffer.from(supplied),b=Buffer.from(expected);
+ if(a.length!==b.length||!crypto.timingSafeEqual(a,b)){state.count++;if(state.count>=5){state.count=0;state.until=now+5*60*1000}ownerAttempts.set(ip,state);return res.status(401).json({error:'Mot de passe incorrect.'})}
+ ownerAttempts.delete(ip);const token=crypto.randomBytes(32).toString('base64url');ownerSessions.set(token,{expires:now+1000*60*60*12});res.setHeader('Set-Cookie',OWNER_COOKIE+'='+encodeURIComponent(token)+'; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200');res.json({ok:true});
+});
+app.get('/api/owner/session',(req,res)=>res.json({authenticated:!!ownerSession(req)}));
+app.post('/api/owner/logout',(req,res)=>{const token=parseCookies(req)[OWNER_COOKIE];if(token)ownerSessions.delete(token);res.setHeader('Set-Cookie',OWNER_COOKIE+'=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');res.json({ok:true})});
+app.get('/api/owner/customers',requireOwner,async(req,res)=>{try{res.json(await searchCustomers(req.query.q||''))}catch(e){console.error(e);res.status(500).json({error:'Recherche impossible'})}});
+app.patch('/api/owner/customers/:member',requireOwner,async(req,res)=>{try{const x=await adminUpdateCustomer(req.params.member,req.body||{});if(!x)return res.sendStatus(404);await syncWalletCustomer(x);res.json(x)}catch(e){console.error(e);res.status(500).json({error:'Modification impossible'})}});
+app.delete('/api/owner/customers/:member',requireOwner,async(req,res)=>{try{const ok=await deleteCustomer(req.params.member);if(!ok)return res.sendStatus(404);res.json({ok:true})}catch(e){console.error(e);res.status(500).json({error:'Suppression impossible'})}});
+
 function validMetaSignature(req){
  const secret=process.env.META_APP_SECRET,header=req.get('x-hub-signature-256');
  if(!secret||!header||!req.rawBody)return false;
